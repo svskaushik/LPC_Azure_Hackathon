@@ -2526,6 +2526,7 @@ snapshots:
       ai: 4.3.16(react@19.1.0)(zod@3.25.57)
       lucide-react: 0.487.0(react@19.1.0)
       next: 15.3.0(@opentelemetry/api@1.9.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      openai: 5.3.0(zod@3.25.57)
       react: 19.1.0
       react-dom: 19.1.0(react@19.1.0)
       react-textarea-autosize: 8.5.9(@types/react@19.1.7)(react@19.1.0)
@@ -2538,6 +2539,7 @@ snapshots:
       - babel-plugin-macros
       - babel-plugin-react-compiler
       - sass
+      - ws
 
   ai@4.3.16(react@19.1.0)(zod@3.25.57):
     dependencies:

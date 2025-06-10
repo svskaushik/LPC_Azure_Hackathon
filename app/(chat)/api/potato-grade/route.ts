@@ -33,6 +33,7 @@ export async function POST(req: NextRequest) {
 
         // Call Azure OpenAI chat completion using official client with proper vision API format
         const response = await client.chat.completions.create({
+            model: deployment,
             messages: [
                 { role: 'system', content: systemPrompt },
                 { 

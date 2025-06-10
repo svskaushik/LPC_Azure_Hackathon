@@ -46,8 +46,7 @@ export default function Chat() {
     if (!image) return;
     setUploading(true);
     setError(null);
-    setGrading(null);
-    try {
+    setGrading(null);    try {
       const formData = new FormData();
       formData.append('image', image);
       const res = await fetch('/api/potato-grade', {
@@ -60,8 +59,10 @@ export default function Chat() {
       } else {
         setError(data.error || 'Unknown error');
       }
-    } catch (err) {
-      setError('Failed to upload image.');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to upload image.';
+      setError(errorMessage);
+      console.error('Image upload error:', error);
     } finally {
       setUploading(false);
     }
