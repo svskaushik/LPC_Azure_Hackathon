@@ -79,9 +79,15 @@ export default function Chat() {
             accept="image/*"
             onChange={handleImageChange}
             className="file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-[#1670ec] file:text-white hover:file:bg-[#125aa5]"
-          />
-          {preview && (
-            <img src={preview} alt="Preview" className="max-h-48 rounded shadow" />
+          />          {preview && (
+            <Image 
+              src={preview} 
+              alt="Preview" 
+              className="max-h-48 rounded shadow object-contain" 
+              width={300}
+              height={300}
+              unoptimized // For blob URLs which Next Image doesn't optimize
+            />
           )}
           <button
             type="submit"

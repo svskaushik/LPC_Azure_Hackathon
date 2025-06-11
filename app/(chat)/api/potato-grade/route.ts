@@ -3,16 +3,23 @@ import { AzureOpenAI } from 'openai';
 
 // Azure OpenAI endpoint setup (key-based auth)
 // Use the base resource URL, not the full path
-const endpoint = process.env.AZURE_OPENAI_RESOURCE_NAME;
-const apiKey = process.env.AZURE_OPENAI_API_KEY;
+// Only initialize client when handling a request, not during build
 const apiVersion = '2025-01-01-preview';
-const deployment = process.env.AZURE_OPENAI_DEPLOYMENT_NAME || 'gpt-4.1';
+const defaultDeployment = 'gpt-4.1';
 
-// Validate environment configuration
-if (!endpoint || !apiKey) {
-  throw new Error('Missing Azure OpenAI configuration: set AZURE_OPENAI_RESOURCE_NAME and AZURE_OPENAI_API_KEY');
+// Create a function that initializes the client on-demand
+function getOpenAIClient() {
+  const endpoint = process.env.AZURE_OPENAI_RESOURCE_NAME;
+  const apiKey = process.env.AZURE_OPENAI_API_KEY;
+  const deployment = process.env.AZURE_OPENAI_DEPLOYMENT_NAME || defaultDeployment;
+  
+  // Validate environment configuration
+  if (!endpoint || !apiKey) {
+    throw new Error('Missing Azure OpenAI configuration: set AZURE_OPENAI_RESOURCE_NAME and AZURE_OPENAI_API_KEY');
+  }
+  
+  return new AzureOpenAI({ endpoint, apiKey, apiVersion, deployment });
 }
-const client = new AzureOpenAI({ endpoint, apiKey, apiVersion, deployment });
 
 export const maxDuration = 60;
 
@@ -29,11 +36,12 @@ export async function POST(req: NextRequest) {
         const base64Image = buffer.toString('base64');
 
         // System prompt for potato grading
-        const systemPrompt = `You work as a potato quality grader. You grade potatoes across two metrics: shininess and smoothness. Both are on a 1-5 scale and a combined grade which is a sum of the two is also assigned. Ignore the potatoes cut in half, only grade based on the skin finish of the whole potatoes.`;
-
+        const systemPrompt = `You work as a potato quality grader. You grade potatoes across two metrics: shininess and smoothness. Both are on a 1-5 scale and a combined grade which is a sum of the two is also assigned. Ignore the potatoes cut in half, only grade based on the skin finish of the whole potatoes.`;        // Create client on-demand to avoid build-time issues
+        const client = getOpenAIClient();
+        
         // Call Azure OpenAI chat completion using official client with proper vision API format
         const response = await client.chat.completions.create({
-            model: deployment,
+            model: defaultDeployment,
             messages: [
                 { role: 'system', content: systemPrompt },
                 { 
