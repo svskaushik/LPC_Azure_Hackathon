@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Upload, AlertCircle, Check, RefreshCw, Cloud, FileBarChart } from 'lucide-react';
+import UserProfileButton from '@/components/UserProfileButton';
 
 // Enhanced spinner with size options
 function Spinner({ size = 'small' }: { size?: 'small' | 'medium' | 'large' }) {
@@ -330,21 +331,23 @@ export default function PotatoGrade() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-zinc-900">
-      {/* Header */}
+    <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-zinc-900">      {/* Header */}
       <header className="bg-white dark:bg-zinc-800 shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">
               Potato Quality Grader
             </h1>
-            <Link 
-              href="/history" 
-              className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-blue-700 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 dark:hover:bg-blue-900/50"
-            >
-              <FileBarChart className="mr-1 h-4 w-4" />
-              View History
-            </Link>
+            <div className="flex items-center space-x-2">
+              <Link 
+                href="/history" 
+                className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-blue-700 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 dark:hover:bg-blue-900/50"
+              >
+                <FileBarChart className="mr-1 h-4 w-4" />
+                View History
+              </Link>
+              <UserProfileButton />
+            </div>
           </div>
         </div>
       </header>

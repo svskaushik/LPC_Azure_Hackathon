@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Search, FileBarChart, ChevronLeft } from 'lucide-react';
+import UserProfileButton from '@/components/UserProfileButton';
 
 export default function GradingHistory() {
   const { data: session, status } = useSession();
@@ -72,21 +73,23 @@ export default function GradingHistory() {
   };
   
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-zinc-900">
-      {/* Header */}
+    <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-zinc-900">      {/* Header */}
       <header className="bg-white dark:bg-zinc-800 shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">
               Grading History
             </h1>
-            <Link 
-              href="/" 
-              className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-blue-700 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 dark:hover:bg-blue-900/50"
-            >
-              <ChevronLeft className="mr-1 h-4 w-4" />
-              Back to Grader
-            </Link>
+            <div className="flex items-center space-x-2">
+              <Link 
+                href="/" 
+                className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-blue-700 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 dark:hover:bg-blue-900/50"
+              >
+                <ChevronLeft className="mr-1 h-4 w-4" />
+                Back to Grader
+              </Link>
+              <UserProfileButton />
+            </div>
           </div>
         </div>
       </header>
