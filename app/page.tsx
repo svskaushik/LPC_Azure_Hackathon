@@ -73,7 +73,17 @@ function ImagePlaceholder() {
 export default function PotatoGrade() {
   const [image, setImage] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
-  const [grading, setGrading] = useState<{ grade: string; reasoning: string } | null>(null);
+  const [grading, setGrading] = useState<{ 
+    grade: string; 
+    reasoning: string; 
+    documentId?: string; 
+    blkNumber?: string; 
+    grades?: { 
+      shininess: number; 
+      smoothness: number; 
+      combined: number; 
+    }; 
+  } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<boolean>(false);
@@ -81,6 +91,18 @@ export default function PotatoGrade() {
   const [processingStage, setProcessingStage] = useState<'uploading' | 'analyzing' | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const API_TIMEOUT = 30000; // 30 seconds timeout for better UX
+
+  // Technician grading state
+  const [showTechnicianGrading, setShowTechnicianGrading] = useState(false);
+  const [technicianShininess, setTechnicianShininess] = useState<number>(0);
+  const [technicianSmoothness, setTechnicianSmoothness] = useState<number>(0);
+  const [submittingTechnicianGrade, setSubmittingTechnicianGrade] = useState(false);
+  const [technicianGraded, setTechnicianGraded] = useState(false);
+
+  // State for BLK number and related fields
+  const [blkNumber, setBlkNumber] = useState<string>('');
+  const [station, setStation] = useState<string>('QC-Station-01');
+  const [batchInfo, setBatchInfo] = useState<string>(`Batch-${new Date().toISOString().split('T')[0]}`);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -108,10 +130,6 @@ export default function PotatoGrade() {
       if (interval) clearInterval(interval);
     };
   }, [uploading, timeRemaining]);
-  // State for BLK number and related fields
-  const [blkNumber, setBlkNumber] = useState<string>('');
-  const [station, setStation] = useState<string>('QC-Station-01');
-  const [batchInfo, setBatchInfo] = useState<string>(`Batch-${new Date().toISOString().split('T')[0]}`);
 
   // Image upload handler
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -144,6 +162,7 @@ export default function PotatoGrade() {
     }
     setPreview(URL.createObjectURL(file));
   };
+
   // Submit image to API with timeout handling
   const handleImageUpload = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -174,7 +193,7 @@ export default function PotatoGrade() {
       
       // Update processing stage to uploading
       setProcessingStage('uploading');
-      
+
       const res = await fetch('/api/potato-grade', {
         method: 'POST',
         body: formData,
@@ -228,8 +247,85 @@ export default function PotatoGrade() {
     setGrading(null);
     setError(null);
     setSuccess(false);
+    setShowTechnicianGrading(false);
+    setTechnicianGraded(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
+    }
+  };
+
+  // Accept AI grades and submit them as technician grades
+  const handleAcceptAIGrades = async () => {
+    if (!grading?.documentId || !grading?.grades) return;
+
+    setSubmittingTechnicianGrade(true);
+    try {
+      const response = await fetch('/api/technician-grade', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          documentId: grading.documentId,
+          blkNumber: grading.blkNumber || blkNumber,
+          smoothness: grading.grades.smoothness,
+          shininess: grading.grades.shininess,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to submit grades');
+      }
+      
+      setTechnicianGraded(true);
+    } catch (error) {
+      setError('Failed to accept grading. Please try again.');
+      console.error('Error accepting AI grades:', error);
+    } finally {
+      setSubmittingTechnicianGrade(false);
+    }
+  };
+
+  // Toggle the technician grade form
+  const handleRefineGrades = () => {
+    if (!grading?.grades) return;
+    
+    // Pre-fill with AI grades
+    setTechnicianSmoothness(grading.grades.smoothness);
+    setTechnicianShininess(grading.grades.shininess);
+    setShowTechnicianGrading(true);
+  };
+
+  // Submit technician grade
+  const handleSubmitTechnicianGrade = async () => {
+    if (!grading?.documentId) return;
+    
+    setSubmittingTechnicianGrade(true);
+    try {
+      const response = await fetch('/api/technician-grade', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          documentId: grading.documentId,
+          blkNumber: grading.blkNumber || blkNumber,
+          smoothness: technicianSmoothness,
+          shininess: technicianShininess,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to submit grades');
+      }
+      
+      setShowTechnicianGrading(false);
+      setTechnicianGraded(true);
+    } catch (error) {
+      setError('Failed to submit grading. Please try again.');
+      console.error('Error submitting technician grades:', error);
+    } finally {
+      setSubmittingTechnicianGrade(false);
     }
   };
 
@@ -237,7 +333,8 @@ export default function PotatoGrade() {
     <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-zinc-900">
       {/* Header */}
       <header className="bg-white dark:bg-zinc-800 shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">          <div className="flex justify-between items-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex justify-between items-center">
             <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">
               Potato Quality Grader
             </h1>
@@ -259,7 +356,8 @@ export default function PotatoGrade() {
               Upload a potato image to receive an automated quality assessment based on shininess and smoothness.
             </p>
             
-            <form onSubmit={handleImageUpload} className="flex flex-col gap-4">              {/* BLK Number and related fields */}
+            <form onSubmit={handleImageUpload} className="flex flex-col gap-4">
+              {/* BLK Number and related fields */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
                   <label className="block">
@@ -410,6 +508,130 @@ export default function PotatoGrade() {
                     <div className="whitespace-pre-wrap text-sm bg-gray-50 dark:bg-zinc-700 p-4 rounded">
                       {grading.reasoning}
                     </div>
+                  </div>
+                  
+                  {/* Technician grading section */}
+                  <div className="mt-6">
+                    <h3 className="font-bold text-lg mb-4">Technician Grading</h3>
+                    
+                    {/* AI grades display */}
+                    {grading.grades && (
+                      <div className="mb-4">
+                        <div className="text-sm text-gray-600 dark:text-gray-300 mb-2">AI Suggested Grades</div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="bg-gray-50 dark:bg-zinc-700 rounded-lg p-4 flex flex-col items-center">
+                            <div className="text-xs text-gray-500 dark:text-gray-400">Shininess</div>
+                            <div className="text-xl font-bold mt-1">
+                              {grading.grades.shininess}/5
+                            </div>
+                          </div>
+                          <div className="bg-gray-50 dark:bg-zinc-700 rounded-lg p-4 flex flex-col items-center">
+                            <div className="text-xs text-gray-500 dark:text-gray-400">Smoothness</div>
+                            <div className="text-xl font-bold mt-1">
+                              {grading.grades.smoothness}/5
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Technician grade actions */}
+                    {!showTechnicianGrading && !technicianGraded ? (
+                      <div className="bg-gray-50 dark:bg-zinc-700 p-4 rounded-lg mt-4">
+                        <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+                          As a technician, you can accept the AI's grading or provide your own assessment.
+                        </p>
+                        <div className="flex flex-col sm:flex-row gap-3">
+                          <button
+                            onClick={handleAcceptAIGrades}
+                            disabled={submittingTechnicianGrade}
+                            className="flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors flex items-center justify-center"
+                          >
+                            {submittingTechnicianGrade ? <Spinner size="small" /> : <Check className="w-4 h-4 mr-1" />}
+                            Accept AI Grades
+                          </button>
+                          
+                          <button
+                            onClick={handleRefineGrades}
+                            disabled={submittingTechnicianGrade}
+                            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                          >
+                            Refine Grades
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+                    
+                    {/* Technician grade form */}
+                    {showTechnicianGrading && (
+                      <div className="p-4 rounded-lg bg-gray-50 dark:bg-zinc-700 border border-gray-200 dark:border-zinc-600">
+                        <div className="grid grid-cols-2 gap-4 mb-4">
+                          <div>
+                            <label className="block">
+                              <span className="text-sm font-medium block mb-1">Technician Shininess</span>
+                              <input
+                                type="number"
+                                value={technicianShininess}
+                                onChange={(e) => setTechnicianShininess(Number(e.target.value))}
+                                min={0}
+                                max={5}
+                                step={0.1}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                            </label>
+                          </div>
+                          <div>
+                            <label className="block">
+                              <span className="text-sm font-medium block mb-1">Technician Smoothness</span>
+                              <input
+                                type="number"
+                                value={technicianSmoothness}
+                                onChange={(e) => setTechnicianSmoothness(Number(e.target.value))}
+                                min={0}
+                                max={5}
+                                step={0.1}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                            </label>
+                          </div>
+                        </div>
+                        
+                        {/* Action buttons */}
+                        <div className="flex flex-col sm:flex-row justify-center gap-3 mt-4">
+                          <button
+                            type="button"
+                            onClick={() => setShowTechnicianGrading(false)}
+                            className="px-4 py-2 rounded bg-gray-200 text-gray-800 font-medium hover:bg-gray-300 mb-2 sm:mb-0"
+                          >
+                            Cancel
+                          </button>
+                          
+                          <button
+                            type="button"
+                            onClick={handleSubmitTechnicianGrade}
+                            disabled={submittingTechnicianGrade}
+                            className="px-6 py-2 rounded bg-blue-600 text-white font-semibold hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center"
+                          >
+                            {submittingTechnicianGrade ? (
+                              <>
+                                <Spinner size="small" />
+                                <span className="ml-2">Submitting...</span>
+                              </>
+                            ) : (
+                              'Submit Technician Grade'
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Technician graded message */}
+                    {technicianGraded && (
+                      <div className="mt-4 p-3 rounded bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-900/50 text-green-800 dark:text-green-200 flex items-center gap-2">
+                        <Check className="h-5 w-5 flex-shrink-0" />
+                        <span>Grading submitted successfully!</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

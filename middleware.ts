@@ -7,7 +7,7 @@ export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
   
   // API routes that require authentication
-  const protectedApiRoutes = ['/api/technician-grade'];
+  const protectedApiRoutes = ['/api/technician-grade', '/api/potato-grade'];
   
   // Paths that require authentication
   const authRoutes = [
@@ -24,8 +24,12 @@ export async function middleware(request: NextRequest) {
   if (!isAuthRoute && !isProtectedApi) {
     return NextResponse.next();
   }
-    // Get the session token
-  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+  
+  // Get the session token
+  const token = await getToken({ 
+    req: request, 
+    secret: process.env.NEXTAUTH_SECRET
+  });
   
   // If the user is not authenticated and is trying to access a protected route,
   // redirect them to the login page
@@ -34,7 +38,8 @@ export async function middleware(request: NextRequest) {
     url.searchParams.set('callbackUrl', encodeURI(request.url));
     return NextResponse.redirect(url);
   }
-    // If they're not authenticated and trying to access a protected API route
+  
+  // If they're not authenticated and trying to access a protected API route
   if (!token && isProtectedApi) {
     return new NextResponse(
       JSON.stringify({ error: 'Authentication required' }),
@@ -52,6 +57,7 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     '/api/technician-grade/:path*',
+    '/api/potato-grade/:path*',
     '/history/:path*',
     '/dashboard/:path*',
     '/profile/:path*',

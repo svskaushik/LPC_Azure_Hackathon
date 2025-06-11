@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
         const base64Image = buffer.toString('base64');
 
         // System prompt for potato grading
-        const systemPrompt = `You work as a potato quality grader. You grade potatoes across two metrics: shininess and smoothness. Both are on a 1-5 scale and a combined grade which is a sum of the two is also assigned. Ignore the potatoes cut in half, only grade based on the skin finish of the whole potatoes.
+        const systemPrompt = `You work as a potato quality grader. You grade potatoes across two metrics: shininess and smoothness. Both are on a 1-5 scale and a combined grade which is a sum of the two is also assigned. You only grade the potatoes in the larger bucket with the 'BLK' number assigned and ignore the smaller batches of defective potatoes. Ignore the potatoes cut in half, only grade based on the skin finish of the whole potatoes.
 
 Your response MUST follow this format:
 1. Start with the shininess score as "Shininess: X/5" where X is the score

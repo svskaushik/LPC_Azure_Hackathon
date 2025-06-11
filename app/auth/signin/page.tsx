@@ -9,10 +9,15 @@ export default function SignIn() {
   const [isLoading, setIsLoading] = useState(false);
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') || '/';
-  
   const handleSignIn = async () => {
     setIsLoading(true);
-    await signIn('azure-ad', { callbackUrl });
+    // Use redirect: true to directly redirect to Microsoft login page with tenant-specific endpoint
+    await signIn('azure-ad', { 
+      callbackUrl,
+      redirect: true,
+      // This ensures we're using the tenant-specific endpoint
+      tenantId: process.env.NEXT_PUBLIC_AZURE_AD_TENANT_ID
+    });
   };
   
   return (
