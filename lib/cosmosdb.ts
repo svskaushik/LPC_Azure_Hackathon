@@ -135,4 +135,13 @@ export class PotatoGradingDatabase {
       throw error;
     }
   }
+
+  async deleteGradingRecord(documentId: string, blkNumber: string): Promise<void> {
+    try {
+      await this.container.item(documentId, blkNumber).delete();
+    } catch (error) {
+      console.error("Error deleting grading record:", error);
+      throw error;
+    }
+  }
 }
