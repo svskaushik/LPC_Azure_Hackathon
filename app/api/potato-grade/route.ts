@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AzureOpenAI } from 'openai';
 import { uploadToBlob, deleteFromBlob } from '../../../utils/blobStorage';
+import { PotatoGradingDatabase } from '@/lib/cosmosdb';
+import { auth } from '@/lib/auth';
 
 // Azure OpenAI endpoint setup (key-based auth)
 // Use the base resource URL, not the full path
@@ -44,8 +46,15 @@ function validateFileSize(file: File): boolean {
 
 export async function POST(req: NextRequest) {
     try {
+        // Check if user is authenticated
+        const session = await auth();
+        const userEmail = session?.user?.email || 'anonymous@example.com';
+        
         const formData = await req.formData();
         const file = formData.get('image') as File | null;
+        const blkNumber = formData.get('blkNumber') as string || `BLK${Date.now()}`;
+        const station = formData.get('station') as string || 'unknown-station';
+        const batchInfo = formData.get('batchInfo') as string || `Batch-${new Date().toISOString().split('T')[0]}`;
         
         // Validate file presence
         if (!file) {
@@ -66,8 +75,18 @@ export async function POST(req: NextRequest) {
             }, { status: 400 });
         }
         
+        // Upload to Azure Blob Storage with metadata
+        const blobName = `raw/${blkNumber}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+        const metadata = {
+            blkNumber,
+            uploadedBy: userEmail,
+            uploadDate: new Date().toISOString(),
+            station,
+            batchInfo
+        };
+        
         // Upload to Azure Blob Storage
-        const blobUrl = await uploadToBlob(file);
+        const blobUrl = await uploadToBlob(file, blobName, metadata);
         if (!blobUrl) {
             return NextResponse.json({ 
                 error: 'Failed to upload image to storage.' 
@@ -116,9 +135,7 @@ Your response MUST follow this format:
             frequency_penalty: 0,
             presence_penalty: 0,
             stop: null,
-        });
-
-        // Extract grade information from the response
+        });        // Extract grade information from the response
         const content = response.choices?.[0]?.message?.content;
         
         if (!content) {
@@ -130,20 +147,79 @@ Your response MUST follow this format:
             }, { status: 500 });
         }
         
-        // Delete the blob after successful analysis
-        await deleteFromBlob(blobUrl);
+        // Parse scores from the content
+        const shininessMatch = content.match(/Shininess:\s*(\d+)\/5/i);
+        const smoothnessMatch = content.match(/Smoothness:\s*(\d+)\/5/i);
+        const combinedMatch = content.match(/Combined:\s*(\d+)\/10/i);
         
-        return NextResponse.json({ 
-            result: {
-                grade: 'Analysis complete',  // General grade
-                reasoning: content  // Full detailed analysis
-            } 
-        }, {
-            status: 200,
-            headers: {
-                'Cache-Control': 'no-store, max-age=0',
-            }
-        });
+        const shininess = shininessMatch ? parseInt(shininessMatch[1]) : 0;
+        const smoothness = smoothnessMatch ? parseInt(smoothnessMatch[1]) : 0;
+        const combined = combinedMatch ? parseInt(combinedMatch[1]) : shininess + smoothness;
+        
+        // Calculate confidence (this is a placeholder - OpenAI doesn't provide confidence)
+        // You could use a heuristic based on response certainty or just default to high confidence
+        const confidence = 0.95;
+        
+        // Get image size (approximation from base64 length)
+        const imageSize = `${Math.round(base64Image.length * 0.75 / 1024)}KB`;
+        
+        // Track processing time
+        const processingTime = Date.now() - Number(new Date());
+        
+        try {
+            // Store grading result in Cosmos DB
+            const cosmosDb = new PotatoGradingDatabase();
+            const gradingRecord = await cosmosDb.createGradingRecord({
+                blkNumber,
+                imageUrl: blobUrl,
+                imageSize,
+                aiGrades: {
+                    smoothness,
+                    shininess,
+                    confidence,
+                },
+                processingTime,
+                technicianEmail: userEmail,
+                station,
+                batchInfo,
+            });
+            
+            // Return the complete response including the Cosmos DB record
+            return NextResponse.json({ 
+                result: {
+                    grade: 'Analysis complete',
+                    reasoning: content,
+                    documentId: gradingRecord.id,
+                    blkNumber: gradingRecord.blkNumber,
+                    imageUrl: blobUrl,
+                    grades: {
+                        smoothness,
+                        shininess,
+                        combined
+                    }
+                } 
+            }, {
+                status: 200,
+                headers: {
+                    'Cache-Control': 'no-store, max-age=0',
+                }
+            });
+        } catch (dbError) {
+            console.error('Cosmos DB error:', dbError);
+            // Don't delete the blob in this case, as we might want to retry storing to DB
+            return NextResponse.json({ 
+                error: 'Error storing grading result in database.',
+                result: {
+                    grade: 'Analysis complete',
+                    reasoning: content,
+                    grades: {
+                        smoothness,
+                        shininess,
+                        combined
+                    }
+                }
+            }, { status: 500 });
+        }
     } catch (error: any) {
         console.error('Vision API error:', error);
         

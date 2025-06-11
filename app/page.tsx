@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
-import { Upload, AlertCircle, Check, RefreshCw, Cloud } from 'lucide-react';
+import Link from 'next/link';
+import { Upload, AlertCircle, Check, RefreshCw, Cloud, FileBarChart } from 'lucide-react';
 
 // Enhanced spinner with size options
 function Spinner({ size = 'small' }: { size?: 'small' | 'medium' | 'large' }) {
@@ -79,7 +80,7 @@ export default function PotatoGrade() {
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [processingStage, setProcessingStage] = useState<'uploading' | 'analyzing' | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const API_TIMEOUT = 10000; // 10 seconds timeout for better UX
+  const API_TIMEOUT = 30000; // 30 seconds timeout for better UX
 
   // Cleanup on unmount
   useEffect(() => {
@@ -107,6 +108,10 @@ export default function PotatoGrade() {
       if (interval) clearInterval(interval);
     };
   }, [uploading, timeRemaining]);
+  // State for BLK number and related fields
+  const [blkNumber, setBlkNumber] = useState<string>('');
+  const [station, setStation] = useState<string>('QC-Station-01');
+  const [batchInfo, setBatchInfo] = useState<string>(`Batch-${new Date().toISOString().split('T')[0]}`);
 
   // Image upload handler
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -139,11 +144,16 @@ export default function PotatoGrade() {
     }
     setPreview(URL.createObjectURL(file));
   };
-
   // Submit image to API with timeout handling
   const handleImageUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!image) return;
+    
+    // Validate BLK number if required
+    if (!blkNumber.trim()) {
+      setError('Please enter a BLK number');
+      return;
+    }
     
     setUploading(true);
     setError(null);
@@ -158,6 +168,9 @@ export default function PotatoGrade() {
     try {
       const formData = new FormData();
       formData.append('image', image);
+      formData.append('blkNumber', blkNumber);
+      formData.append('station', station);
+      formData.append('batchInfo', batchInfo);
       
       // Update processing stage to uploading
       setProcessingStage('uploading');
@@ -224,10 +237,18 @@ export default function PotatoGrade() {
     <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-zinc-900">
       {/* Header */}
       <header className="bg-white dark:bg-zinc-800 shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">
-            Potato Quality Grader
-          </h1>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">          <div className="flex justify-between items-center">
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">
+              Potato Quality Grader
+            </h1>
+            <Link 
+              href="/history" 
+              className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-blue-700 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 dark:hover:bg-blue-900/50"
+            >
+              <FileBarChart className="mr-1 h-4 w-4" />
+              View History
+            </Link>
+          </div>
         </div>
       </header>
       
@@ -238,17 +259,58 @@ export default function PotatoGrade() {
               Upload a potato image to receive an automated quality assessment based on shininess and smoothness.
             </p>
             
-            <form onSubmit={handleImageUpload} className="flex flex-col gap-4">
+            <form onSubmit={handleImageUpload} className="flex flex-col gap-4">              {/* BLK Number and related fields */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block">
+                    <span className="text-sm font-medium block mb-1">BLK Number*</span>
+                    <input
+                      type="text"
+                      value={blkNumber}
+                      onChange={(e) => setBlkNumber(e.target.value)}
+                      placeholder="e.g. BLK115124"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                  </label>
+                </div>
+                <div>
+                  <label className="block">
+                    <span className="text-sm font-medium block mb-1">QC Station</span>
+                    <input
+                      type="text"
+                      value={station}
+                      onChange={(e) => setStation(e.target.value)}
+                      placeholder="e.g. QC-Station-01"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </label>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block">
+                    <span className="text-sm font-medium block mb-1">Batch Info</span>
+                    <input
+                      type="text"
+                      value={batchInfo}
+                      onChange={(e) => setBatchInfo(e.target.value)}
+                      placeholder="e.g. Batch-2025-06-11-A"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </label>
+                </div>
+              </div>
+              
               {/* File upload area */}
               <div className="bg-gray-50 dark:bg-zinc-700 p-4 rounded-lg">
                 <label className="block mb-4">
-                  <span className="text-sm font-medium block mb-1">Select a potato image</span>
+                  <span className="text-sm font-medium block mb-1">Select a potato image*</span>
                   <input
                     type="file"
                     ref={fileInputRef}
                     accept="image/jpeg,image/png"
                     onChange={handleImageChange}
                     className="file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 block w-full"
+                    required
                   />
                 </label>
                 
