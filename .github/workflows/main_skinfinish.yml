@@ -29,19 +29,43 @@ jobs:
           version: 8
           run_install: false
 
-      - name: Create env file
+      - name: Create production environment file
         run: |
+          # Azure OpenAI Configuration
           echo "AZURE_OPENAI_RESOURCE_NAME=${{ secrets.AZURE_OPENAI_RESOURCE_NAME }}" > .env.production
           echo "AZURE_OPENAI_API_KEY=${{ secrets.AZURE_OPENAI_API_KEY }}" >> .env.production
           echo "AZURE_OPENAI_DEPLOYMENT_NAME=${{ secrets.AZURE_OPENAI_DEPLOYMENT_NAME }}" >> .env.production
+          
+          # Azure Blob Storage Configuration
+          echo "BLOB_SAS_TOKEN=${{ secrets.BLOB_SAS_TOKEN }}" >> .env.production
+          echo "BLOB_SAS_URL=${{ secrets.BLOB_SAS_URL }}" >> .env.production
+          
+          # Azure Cosmos DB Configuration
+          echo "AZURE_COSMOS_DB_ENDPOINT=${{ secrets.AZURE_COSMOS_DB_ENDPOINT }}" >> .env.production
+          echo "AZURE_COSMOS_DB_KEY=${{ secrets.AZURE_COSMOS_DB_KEY }}" >> .env.production
+          echo "COSMOSDB_DATABASE_NAME=${{ secrets.COSMOSDB_DATABASE_NAME }}" >> .env.production
+          echo "COSMOSDB_CONTAINER_NAME=${{ secrets.COSMOSDB_CONTAINER_NAME }}" >> .env.production
+          
+          # Microsoft Authentication (NextAuth.js)
+          echo "NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}" >> .env.production
+          echo "NEXTAUTH_URL=${{ secrets.NEXTAUTH_URL }}" >> .env.production
+          echo "AZURE_AD_CLIENT_ID=${{ secrets.AZURE_AD_CLIENT_ID }}" >> .env.production
+          echo "AZURE_AD_CLIENT_SECRET=${{ secrets.AZURE_AD_CLIENT_SECRET }}" >> .env.production
+          echo "AZURE_AD_TENANT_ID=${{ secrets.AZURE_AD_TENANT_ID }}" >> .env.production
+          echo "NEXT_PUBLIC_AZURE_AD_TENANT_ID=${{ secrets.AZURE_AD_TENANT_ID }}" >> .env.production
 
-      - name: Install dependencies and build
-        run: |
-          pnpm install
-          pnpm build
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build application
+        run: pnpm build
+        env:
+          # Include critical build-time env vars here too to ensure proper build
+          NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
+          NEXT_PUBLIC_AZURE_AD_TENANT_ID: ${{ secrets.AZURE_AD_TENANT_ID }}
 
       - name: Zip artifact for deployment
-        run: zip release.zip ./* -r
+        run: zip release.zip ./* -r -x "node_modules/*" ".git/*" ".github/*"
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
@@ -65,6 +89,9 @@ jobs:
       - name: Unzip artifact for deployment
         run: unzip release.zip
       
+      - name: Install production dependencies
+        run: pnpm install --prod --frozen-lockfile
+
       - name: 'Deploy to Azure Web App'
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
@@ -73,3 +100,13 @@ jobs:
           slot-name: 'Production'
           package: .
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_5402FB765CA54743BEE72539F424EC63 }}
+
+      - name: Report deployment status
+        if: always()
+        run: |
+          if [ "${{ steps.deploy-to-webapp.outcome }}" == "success" ]; then
+            echo "✅ Deployment successful!"
+          else
+            echo "❌ Deployment failed. Check logs for details."
+            exit 1
+          fi
