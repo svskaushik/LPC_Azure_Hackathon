@@ -26,7 +26,7 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v3
         with:
-          version: 8
+          version: 10.6.4 
           run_install: false
 
       - name: Create production environment file
