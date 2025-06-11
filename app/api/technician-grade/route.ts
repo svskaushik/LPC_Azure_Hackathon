@@ -73,3 +73,37 @@ export async function GET(req: NextRequest) {
         }, { status: 500 });
     }
 }
+
+export async function DELETE(req: NextRequest) {
+    try {
+        // Check if user is authenticated
+        const session = await auth();
+        
+        if (!session?.user?.email) {
+            return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+        }
+
+        // Get document ID and BLK number from request
+        const { documentId, blkNumber } = await req.json();
+
+        if (!documentId || !blkNumber) {
+            return NextResponse.json({ 
+                error: 'Missing required fields: documentId, blkNumber' 
+            }, { status: 400 });
+        }
+        
+        // Delete the grading record
+        const cosmosDb = new PotatoGradingDatabase();
+        await cosmosDb.deleteGradingRecord(documentId, blkNumber);
+        
+        return NextResponse.json({ 
+            success: true, 
+            message: 'Grading record deleted successfully'
+        });
+    } catch (error: any) {
+        console.error('Error deleting grading record:', error);
+        return NextResponse.json({ 
+            error: error.message || 'Failed to delete grading record'
+        }, { status: 500 });
+    }
+}
