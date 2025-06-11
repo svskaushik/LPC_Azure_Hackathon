@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
-import { Upload, AlertCircle, Check, RefreshCw } from 'lucide-react';
+import { Upload, AlertCircle, Check, RefreshCw, Cloud } from 'lucide-react';
 
 // Enhanced spinner with size options
 function Spinner({ size = 'small' }: { size?: 'small' | 'medium' | 'large' }) {
@@ -77,6 +77,7 @@ export default function PotatoGrade() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<boolean>(false);
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+  const [processingStage, setProcessingStage] = useState<'uploading' | 'analyzing' | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const API_TIMEOUT = 10000; // 10 seconds timeout for better UX
 
@@ -158,6 +159,9 @@ export default function PotatoGrade() {
       const formData = new FormData();
       formData.append('image', image);
       
+      // Update processing stage to uploading
+      setProcessingStage('uploading');
+      
       const res = await fetch('/api/potato-grade', {
         method: 'POST',
         body: formData,
@@ -165,6 +169,9 @@ export default function PotatoGrade() {
       });
       
       clearTimeout(timeoutId);
+      
+      // Update processing stage to analyzing after upload
+      setProcessingStage('analyzing');
       
       if (!res.ok) {
         const errorData = await res.json();
@@ -194,6 +201,7 @@ export default function PotatoGrade() {
     } finally {
       setUploading(false);
       setTimeRemaining(null);
+      setProcessingStage(null);
     }
   };
 
@@ -295,9 +303,17 @@ export default function PotatoGrade() {
               {uploading && (
                 <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-900/50">
                   <div className="flex justify-center mb-2">
-                    <RefreshCw className="animate-spin h-6 w-6 text-blue-600 dark:text-blue-400" />
+                    {processingStage === 'uploading' ? (
+                      <Cloud className="animate-pulse h-6 w-6 text-blue-600 dark:text-blue-400" />
+                    ) : (
+                      <RefreshCw className="animate-spin h-6 w-6 text-blue-600 dark:text-blue-400" />
+                    )}
                   </div>
-                  <p className="text-sm text-blue-700 dark:text-blue-300">Analyzing potato image...</p>
+                  <p className="text-sm text-blue-700 dark:text-blue-300">
+                    {processingStage === 'uploading' 
+                      ? 'Uploading image to cloud storage...' 
+                      : 'Analyzing potato image...'}
+                  </p>
                   <p className="text-xs mt-1 text-blue-600 dark:text-blue-400">
                     This will take a few seconds
                   </p>

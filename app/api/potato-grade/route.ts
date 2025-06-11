@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AzureOpenAI } from 'openai';
+import { uploadToBlob, deleteFromBlob } from '../../../utils/blobStorage';
 
 // Azure OpenAI endpoint setup (key-based auth)
 // Use the base resource URL, not the full path
@@ -65,7 +66,15 @@ export async function POST(req: NextRequest) {
             }, { status: 400 });
         }
         
-        // Read file as buffer
+        // Upload to Azure Blob Storage
+        const blobUrl = await uploadToBlob(file);
+        if (!blobUrl) {
+            return NextResponse.json({ 
+                error: 'Failed to upload image to storage.' 
+            }, { status: 500 });
+        }
+        
+        // Read file as buffer for OpenAI API
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
         const base64Image = buffer.toString('base64');
@@ -114,10 +123,15 @@ Your response MUST follow this format:
         
         if (!content) {
             console.error('Empty response from Azure OpenAI');
+            // Delete the blob since we won't be using it anymore
+            await deleteFromBlob(blobUrl);
             return NextResponse.json({ 
                 error: 'No grading result received from API.' 
             }, { status: 500 });
         }
+        
+        // Delete the blob after successful analysis
+        await deleteFromBlob(blobUrl);
         
         return NextResponse.json({ 
             result: {
@@ -146,7 +160,7 @@ Your response MUST follow this format:
                 error: 'Rate limit exceeded. Please try again later.' 
             }, { status: 429 });
         }
-
+        
         if (error.status === 401 || error.status === 403) {
             return NextResponse.json({ 
                 error: 'Authentication error with the vision service.' 
